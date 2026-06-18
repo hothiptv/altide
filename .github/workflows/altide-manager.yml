@@ -1,0 +1,46 @@
+name: Altide Data Robot Manager
+on:
+  repository_dispatch:
+    types: [altide_edit_request]
+
+jobs:
+  update-data:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Robot Xử Lý Dữ Liệu data.json
+        env:
+          ACTION_TYPE: ${{ github.event.client_payload.action }} # "create_folder" hoặc "write_file"
+          TARGET_TARGET: ${{ github.event.client_payload.target_path }} # Tên mục/thư mục ảo muốn tác động
+          DATA_CONTENT: ${{ github.event.client_payload.content }} # Nội dung dữ liệu cần nhét vào
+        run: |
+          echo "🤖 Robot Altide đang khởi động tiến trình chỉnh sửa..."
+          
+          # Kiểm tra nếu file data.json chưa tồn tại thì tạo mới file rỗng
+          if [ ! -f data.json ]; then
+            echo "{\"project_name\":\"altide_storage\",\"system_files\":{}}" > data.json
+          fi
+
+          if [ "$ACTION_TYPE" == "create_folder" ]; then
+            echo "📁 Đang tạo mục lưu trữ mới: $TARGET_TARGET"
+            # Sử dụng jq để thêm một object rỗng (thư mục ảo) vào trong system_files
+            jq --arg folder "$TARGET_TARGET" '.system_files[$folder] = {}' data.json > tmp.json && mv tmp.json data.json
+          
+          elif [ "$ACTION_TYPE" == "write_file" ]; then
+            echo "📝 Đang ghi dữ liệu vào mục: $TARGET_TARGET"
+            # Sử dụng jq để chèn nội dung dữ liệu (content) vào đúng mục được chỉ định
+            jq --arg folder "$TARGET_TARGET" --arg content "$DATA_CONTENT" '.system_files[$folder] = $content' data.json > tmp.json && mv tmp.json data.json
+          fi
+
+          echo "✅ Robot đã xử lý xong cấu trúc JSON mới."
+
+      - name: Robot Tự Động Lưu Và Đẩy Lên GitHub
+        run: |
+          git config --global user.name "altide-robot-manager"
+          git config --global user.email "robot@altide.io"
+          git add data.json
+          
+          # Chỉ commit nếu file data.json thực sự có sự thay đổi dữ liệu
+          git diff-index --quiet HEAD || (git commit -m "🤖 [altide] Robot đã cập nhật dữ liệu data.json" && git push)
