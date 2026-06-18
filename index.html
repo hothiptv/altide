@@ -3,91 +3,77 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Altide Robot Controller</title>
+    <title>Ứng dụng kết nối Data Altide</title>
     <style>
-        body { background: #0d0f14; color: white; font-family: sans-serif; padding: 15px; text-align: center; }
-        .box { background: #1a1d26; padding: 20px; border-radius: 12px; border: 1px solid #2d3446; max-width: 400px; margin: 20px auto; text-align: left; }
-        h3 { margin-top: 0; color: #00a2ff; text-align: center; }
-        label { font-size: 12px; color: #8e99a8; display: block; margin-top: 12px; }
-        input, select, textarea { width: 100%; padding: 12px; margin: 5px 0 10px 0; border-radius: 8px; border: 1px solid #343c50; background: #242936; color: white; box-sizing: border-box; font-family: sans-serif; }
-        button { width: 100%; background: #00a2ff; color: white; border: none; padding: 13px; border-radius: 8px; font-weight: bold; cursor: pointer; font-size: 14px; }
-        button:active { background: #0082cc; }
-        #console { background: #000; padding: 12px; border-radius: 6px; font-family: monospace; font-size: 12px; color: #00e676; max-height: 180px; overflow-y: auto; margin-top: 15px; white-space: pre-wrap; border: 1px solid #242936; }
+        body { background: #0d0f14; color: white; font-family: sans-serif; padding: 20px; }
+        .data-box { background: #1a1d26; padding: 15px; border-radius: 8px; border: 1px solid #2d3446; margin-top: 15px; }
+        .folder-item { background: #242936; padding: 10px; margin: 5px 0; border-radius: 6px; border-left: 4px solid #00a2ff; }
+        button { background: #00a2ff; color: white; border: none; padding: 10px 15px; border-radius: 6px; font-weight: bold; cursor: pointer; }
     </style>
 </head>
 <body>
 
-    <div class="box">
-        <h3>🤖 BÀN ĐIỀU KHIỂN ROBOT [altide]</h3>
-        
-        <label>Chọn hành động cho Robot:</label>
-        <select id="actionType">
-            <option value="create_folder">📁 Tạo mục/thư mục chứa dữ liệu mới</option>
-            <option value="write_file">📝 Ghi dữ liệu vào mục sẵn có</option>
-        </select>
+    <h2>📱 Giao diện App/Game của An Bro</h2>
+    <p>Trang này đang kết nối trực tiếp đến cơ sở dữ liệu trung tâm GitHub...</p>
+    
+    <button onclick="taiDuLieuTuAltide()">🔄 LÀM MỚI DỮ LIỆU</button>
 
-        <label>Tên mục tác động (Ví dụ: "tailieu_game", "user_setting"):</label>
-        <input type="text" id="targetPath" placeholder="Nhập tên mục...">
-
-        <label>Nội dung dữ liệu (Chỉ cần điền nếu chọn ghi dữ liệu):</label>
-        <textarea id="textContent" rows="3" placeholder="Nhập chuỗi văn bản hoặc dữ liệu cần lưu..."></textarea>
-        
-        <button onclick="raLenhChoRobot()">⚡ PHÁT LỆNH CHO ROBOT CHỈNH SỬA</button>
-
-        <div id="console">&gt;_ Robot đang túc trực lệnh...</div>
+    <div class="data-box">
+        <h4>🗄️ Dữ liệu lấy từ file data.json:</h4>
+        <div id="hienThiData">Đang kết nối đến dữ liệu...</div>
     </div>
 
 <script>
-// ==================== CẤU HÌNH GITHUB ====================
-const GITHUB_USER = "ten-tai-khoan-github-cua-ong";
-const REPO_NAME = "altide-data";
-const TRIGGER_TOKEN = "ghp_token_cua_ong_ban"; 
-// ========================================================
+// ==================== CẤU HÌNH ĐƯỜNG TRUYỀN DATA ====================
+const GITHUB_USER = "hothiptv"; // Tên tài khoản GitHub của ông
+const REPO_NAME = "ten-repo-cua-ong"; // Điền đúng tên Repository chứa file data.json
+// ====================================================================
 
-const logger = document.getElementById('console');
-function log(text, color = "#00e676") {
-    logger.innerHTML += `\n<span style="color:${color}">&gt; ${text}</span>`;
-    logger.scrollTop = logger.scrollHeight;
-}
+async function taiDuLieuTuAltide() {
+    const vungHienThi = document.getElementById('hienThiData');
+    vungHienThi.innerText = "⏳ Đang tải dữ liệu mới nhất...";
 
-async function raLenhChoRobot() {
-    const action = document.getElementById('actionType').value;
-    const targetPath = document.getElementById('targetPath').value.trim();
-    const content = document.getElementById('textContent').value.trim();
-
-    if(!targetPath) return log("⚠️ Thất bại: Thiếu tên mục tác động!", "#ff5252");
-
-    log("🛰️ Đang truyền tín hiệu mã hóa cho Robot...", "#ffb300");
+    // Link lấy dữ liệu gốc (Raw) công khai từ GitHub Pages / GitHub Raw
+    // Thêm ?t=${Date.now()} để ép trình duyệt luôn lấy data mới nhất, không bị lưu cache cũ
+    const urlData = `https://raw.githubusercontent.com/${GITHUB_USER}/${REPO_NAME}/main/data.json?t=${Date.now()}`;
 
     try {
-        // Gửi gói tin dispatch kích hoạt robot chạy
-        const res = await fetch(`https://api.github.com/repos/${GITHUB_USER}/${REPO_NAME}/dispatches`, {
-            method: 'POST',
-            headers: {
-                'Authorization': `token ${TRIGGER_TOKEN}`,
-                'Accept': 'application/vnd.github.v3+json',
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                event_type: "altide_edit_request",
-                client_payload: {
-                    action: action,
-                    target_path: targetPath,
-                    content: content
-                }
-            })
-        });
+        const response = await fetch(urlData);
+        if(!response.ok) throw new Error("Không thể kết nối đến kho dữ liệu GitHub!");
 
-        if(res.status === 204) {
-            log("🚀 Robot đã nhận lệnh thành công! Nó đang mở file data.json ra chỉnh sửa trên hệ thống đám mây ngầm (Mất 5-10s)...", "#00a2ff");
+        const data = await response.json();
+        
+        // Bắt đầu xử lý và hiển thị dữ liệu lên giao diện HTML này
+        vungHienThi.innerHTML = `<strong>Tên dự án:</strong> ${data.project_name}<br><br>`;
+        
+        const files = data.system_files;
+        if (Object.keys(files).length === 0) {
+            vungHienThi.innerHTML += "📂 Kho lưu trữ hiện tại đang trống rỗng.";
         } else {
-            log("❌ Lỗi gửi lệnh: Kiểm tra lại Token hoặc tên cấu hình Repo!", "#ff5252");
+            vungHienThi.innerHTML += `<strong>Các mục dữ liệu tìm thấy:</strong>`;
+            for (let folderName in files) {
+                // Lấy nội dung bên trong mục dữ liệu
+                let noiDung = files[folderName];
+                // Nếu nội dung là object trống (thư mục ảo), ghi là Thư mục rỗng
+                if(typeof noiDung === 'object' && Object.keys(noiDung).length === 0) {
+                    noiDung = "<i>(Thư mục rỗng)</i>";
+                }
+
+                vungHienThi.innerHTML += `
+                    <div class="folder-item">
+                        <strong>📁 ${folderName}:</strong> ${noiDung}
+                    </div>
+                `;
+            }
         }
 
     } catch (err) {
-        log("💥 Thất bại: " + err.message, "#ff5252");
+        vungHienThi.innerHTML = `<span style="color:#ff5252;">❌ Lỗi kết nối: ${err.message}</span>`;
     }
 }
+
+// Tự động gọi tải dữ liệu ngay khi file HTML này vừa được mở lên
+taiDuLieuTuAltide();
 </script>
 </body>
 </html>
