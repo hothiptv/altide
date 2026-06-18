@@ -1,66 +1,44 @@
 name: Altide Data Robot Manager
 
 on:
-  issues:
-    types: [opened]
+  repository_dispatch:
+    types: [altide_edit_request]
 
 permissions:
   contents: write
-  issues: write
 
 jobs:
   update-data:
-    if: startsWith(github.event.issue.title, '[ALTIDE_COMMAND]')
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout Code
+      - name: Checkout Code Khỏi Kho Dữ Liệu
         uses: actions/checkout@v4
 
-      - name: Robot Xử Lý Dữ Liệu Toàn Năng
+      - name: Robot Sửa File data.json Theo Lệnh Ngầm
         run: |
-          # 1. Tách lệnh từ Tiêu đề Issue
-          TITLE="${{ github.event.issue.title }}"
-          ACTION_TYPE=$(echo "$TITLE" | sed 's/\[ALTIDE_COMMAND\] //')
-          
-          # 2. Tách dữ liệu từ Nội dung Issue
-          BODY="${{ github.event.issue.body }}"
-          TARGET_TARGET=$(echo "$BODY" | grep '^target:' | cut -d':' -f2- | xargs)
-          DATA_CONTENT=$(echo "$BODY" | grep '^content:' | cut -d':' -f2- | xargs)
+          ACTION_TYPE="${{ github.event.client_payload.action }}"
+          TARGET_TARGET="${{ github.event.client_payload.target_path }}"
+          DATA_CONTENT="${{ github.event.client_payload.content }}"
 
-          echo "🤖 Lệnh nhận được: $ACTION_TYPE"
-          echo "🎯 Mục tác động: $TARGET_TARGET"
+          echo "🤖 Lệnh ngầm nhận được: $ACTION_TYPE"
 
-          # Tự động khởi tạo file nếu chưa có
           if [ ! -f data.json ]; then
             echo "{\"project_name\":\"altide_storage\",\"system_files\":{}}" > data.json
           fi
 
-          # 3. RẼ NHÁNH XỬ LÝ THEO TỪNG CHỨC NĂNG
           if [ "$ACTION_TYPE" == "create_folder" ]; then
-            echo "📁 Đang tạo mục rỗng mới..."
             jq --arg folder "$TARGET_TARGET" '.system_files[$folder] = {}' data.json > tmp.json && mv tmp.json data.json
-
           elif [ "$ACTION_TYPE" == "write_file" ]; then
-            echo "📝 Đang ghi/sửa dữ liệu..."
             jq --arg folder "$TARGET_TARGET" --arg content "$DATA_CONTENT" '.system_files[$folder] = $content' data.json > tmp.json && mv tmp.json data.json
-
-          elif [ "$ACTION_TYPE" == "delete_folder" ] || [ "$ACTION_TYPE" == "delete_file" ]; then
-            echo "🗑️ Đang xóa mục khỏi cấu trúc JSON..."
+          elif [ "$ACTION_TYPE" == "delete_folder" ]; then
             jq --arg folder "$TARGET_TARGET" 'del(.system_files[$folder])' data.json > tmp.json && mv tmp.json data.json
-          
-          elif [ "$ACTION_TYPE" == "destroy_all_data" ]; then
-            echo "💥 LỆNH HỦY DIỆT: Xóa sạch file data.json..."
-            rm -f data.json
-            echo "{\"project_name\":\"altide_storage\",\"system_files\":{}}" > data.json
           fi
 
-      - name: Robot Lưu Thay Đổi Và Đóng Cổng Xác Thực
+      - name: Robot Tự Động Push Lưu Lại Dữ Liệu
         run: |
           git config --global user.name "altide-robot-manager"
           git config --global user.email "robot@altide.io"
           git add data.json
-          git diff-index --quiet HEAD || (git commit -m "🤖 [altide] Đã thực thi lệnh Tạo/Sửa/Xóa thành công" && git push origin HEAD)
-          
-          gh issue close ${{ github.event.issue.number }} --comment "🤖 [altide] Đã xử lý xong tác vụ và đóng cổng an toàn!"
+          git diff-index --quiet HEAD || (git commit -m "🤖 [altide] Cập nhật dữ liệu ngầm tự động" && git push origin HEAD)
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
