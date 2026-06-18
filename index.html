@@ -3,77 +3,149 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ứng dụng kết nối Data Altide</title>
+    <title>Altide Hub - File Cloud Manager</title>
     <style>
-        body { background: #0d0f14; color: white; font-family: sans-serif; padding: 20px; }
-        .data-box { background: #1a1d26; padding: 15px; border-radius: 8px; border: 1px solid #2d3446; margin-top: 15px; }
-        .folder-item { background: #242936; padding: 10px; margin: 5px 0; border-radius: 6px; border-left: 4px solid #00a2ff; }
-        button { background: #00a2ff; color: white; border: none; padding: 10px 15px; border-radius: 6px; font-weight: bold; cursor: pointer; }
+        body { background: #0d0f14; color: white; font-family: sans-serif; padding: 15px; margin: 0; }
+        .container { max-width: 600px; margin: 20px auto; }
+        .box { background: #1a1d26; padding: 20px; border-radius: 12px; border: 1px solid #2d3446; margin-bottom: 20px; }
+        h3, h4 { margin-top: 0; color: #00a2ff; }
+        label { font-size: 12px; color: #8e99a8; display: block; margin-top: 12px; }
+        input, select, textarea { width: 100%; padding: 12px; margin: 5px 0 10px 0; border-radius: 8px; border: 1px solid #343c50; background: #242936; color: white; box-sizing: border-box; }
+        button { width: 100%; background: #00a2ff; color: white; border: none; padding: 13px; border-radius: 8px; font-weight: bold; cursor: pointer; font-size: 14px; transition: 0.2s; }
+        button:active { background: #0082cc; }
+        #console { background: #000; padding: 12px; border-radius: 6px; font-family: monospace; font-size: 12px; color: #00e676; max-height: 150px; overflow-y: auto; white-space: pre-wrap; }
+        code { background: #000; color: #ffb300; padding: 2px 6px; border-radius: 4px; font-family: monospace; }
+        pre { background: #05070a; padding: 15px; border-radius: 8px; overflow-x: auto; border: 1px solid #242936; font-size: 12px; color: #a5d6ff; text-align: left; }
     </style>
 </head>
 <body>
 
-    <h2>📱 Giao diện App/Game của An Bro</h2>
-    <p>Trang này đang kết nối trực tiếp đến cơ sở dữ liệu trung tâm GitHub...</p>
-    
-    <button onclick="taiDuLieuTuAltide()">🔄 LÀM MỚI DỮ LIỆU</button>
+<div class="container">
 
-    <div class="data-box">
-        <h4>🗄️ Dữ liệu lấy từ file data.json:</h4>
-        <div id="hienThiData">Đang kết nối đến dữ liệu...</div>
+    <div class="box">
+        <h3>🤖 BÀN ĐIỀU KHIỂN ROBOT [altide]</h3>
+        <p style="font-size: 11px; color:#8e99a8; margin-top:-10px;">Cổng tương tác Issue (Không Token - Không sợ khóa)</p>
+        
+        <label>Chọn tác vụ quản lý:</label>
+        <select id="actionType" onchange="toggleContentInput()">
+            <option value="create_folder">📁 Tạo mục/thư mục dữ liệu mới</option>
+            <option value="write_file">📝 Ghi dữ liệu / Sửa đổi nội dung mục</option>
+            <option value="delete_folder">🗑️ Xóa một mục dữ liệu</option>
+            <option value="destroy_all_data">💥 XÓA SẠCH TOÀN BỘ FILE DATA</option>
+        </select>
+
+        <div id="targetZone">
+            <label id="targetLabel">Tên mục tác động (Key):</label>
+            <input type="text" id="targetPath" placeholder="Ví dụ: save_game_1, thong_tin_user...">
+        </div>
+
+        <div id="contentZone" style="display: none;">
+            <label>Nội dung dữ liệu cần ghi vào mục:</label>
+            <textarea id="textContent" rows="4" placeholder="Nhập chuỗi văn bản, số, hoặc chuỗi mã hóa..."></textarea>
+        </div>
+        
+        <button onclick="guiLenhChoRobot()">⚡ THỰC THI QUA GITHUB ISSUE</button>
+        
+        <label>Màn hình trạng thái lệnh:</label>
+        <div id="console">&gt;_ Hệ thống quản lý sẵn sàng...</div>
     </div>
 
-<script>
-// ==================== CẤU HÌNH ĐƯỜNG TRUYỀN DATA ====================
-const GITHUB_USER = "hothiptv"; // Tên tài khoản GitHub của ông
-const REPO_NAME = "ten-repo-cua-ong"; // Điền đúng tên Repository chứa file data.json
-// ====================================================================
+    <div class="box">
+        <h4>🔌 KHU VỰC LẤY CODE KẾT NỐI (DÁN VÀO HTML KHÁC)</h4>
+        <p style="font-size: 11px; color:#8e99a8; margin-top:-10px;">Copy đoạn code JavaScript Fetch dưới đây dán vào Game hoặc App HTML khác của ông bạn để bốc dữ liệu từ xa về.</p>
+        
+        <pre>
+// ==================== CODE KẾT NỐI ALTIDE DATA ====================
+const GITHUB_USER = "hothiptv";
+const REPO_NAME = "altide";
 
-async function taiDuLieuTuAltide() {
-    const vungHienThi = document.getElementById('hienThiData');
-    vungHienThi.innerText = "⏳ Đang tải dữ liệu mới nhất...";
-
-    // Link lấy dữ liệu gốc (Raw) công khai từ GitHub Pages / GitHub Raw
-    // Thêm ?t=${Date.now()} để ép trình duyệt luôn lấy data mới nhất, không bị lưu cache cũ
-    const urlData = `https://raw.githubusercontent.com/${GITHUB_USER}/${REPO_NAME}/main/data.json?t=${Date.now()}`;
-
+async function layDataTuAltide() {
+    // Thêm mốc thời gian ?t= để ép trình duyệt không lưu cache cũ
+    const url = `https://raw.githubusercontent.com/\${GITHUB_USER}/\${REPO_NAME}/main/data.json?t=\${Date.now()}`;
     try {
-        const response = await fetch(urlData);
-        if(!response.ok) throw new Error("Không thể kết nối đến kho dữ liệu GitHub!");
-
+        const response = await fetch(url);
+        if(!response.ok) throw new Error("Lỗi kết nối kho lưu trữ!");
         const data = await response.json();
         
-        // Bắt đầu xử lý và hiển thị dữ liệu lên giao diện HTML này
-        vungHienThi.innerHTML = `<strong>Tên dự án:</strong> ${data.project_name}<br><br>`;
+        console.log("🎉 Đã kết nối hệ thống dữ liệu thành công!", data);
         
+        // Xem toàn bộ danh sách file/mục của ông:
         const files = data.system_files;
-        if (Object.keys(files).length === 0) {
-            vungHienThi.innerHTML += "📂 Kho lưu trữ hiện tại đang trống rỗng.";
-        } else {
-            vungHienThi.innerHTML += `<strong>Các mục dữ liệu tìm thấy:</strong>`;
-            for (let folderName in files) {
-                // Lấy nội dung bên trong mục dữ liệu
-                let noiDung = files[folderName];
-                // Nếu nội dung là object trống (thư mục ảo), ghi là Thư mục rỗng
-                if(typeof noiDung === 'object' && Object.keys(noiDung).length === 0) {
-                    noiDung = "<i>(Thư mục rỗng)</i>";
-                }
-
-                vungHienThi.innerHTML += `
-                    <div class="folder-item">
-                        <strong>📁 ${folderName}:</strong> ${noiDung}
-                    </div>
-                `;
-            }
-        }
-
+        return files; 
+        
     } catch (err) {
-        vungHienThi.innerHTML = `<span style="color:#ff5252;">❌ Lỗi kết nối: ${err.message}</span>`;
+        console.error("❌ Thất bại: " + err.message);
+    }
+}
+// Gọi hàm này bất cứ lúc nào muốn load dữ liệu:
+// layDataTuAltide().then(files => { console.log(files); });
+// ==================================================================</pre>
+    </div>
+
+</div>
+
+<script>
+const GITHUB_USER = "hothiptv";
+const REPO_NAME = "altide"; 
+
+const logger = document.getElementById('console');
+function log(text, color = "#00e676") {
+    logger.innerHTML += `\n<span style="color:${color}">&gt; ${text}</span>`;
+    logger.scrollTop = logger.scrollHeight;
+}
+
+// Hàm ẩn hiện ô nhập nội dung tùy thuộc vào hành động tạo hay sửa hay xóa
+function toggleContentInput() {
+    const action = document.getElementById('actionType').value;
+    const targetZone = document.getElementById('targetZone');
+    const contentZone = document.getElementById('contentZone');
+    
+    if (action === "write_file") {
+        targetZone.style.display = "block";
+        contentZone.style.display = "block";
+        document.getElementById('targetLabel').innerText = "Tên mục muốn ghi/sửa dữ liệu:";
+    } else if (action === "destroy_all_data") {
+        targetZone.style.display = "none";
+        contentZone.style.display = "none";
+    } else {
+        targetZone.style.display = "block";
+        contentZone.style.display = "none";
+        document.getElementById('targetLabel').innerText = "Tên mục muốn tạo hoặc xóa:";
     }
 }
 
-// Tự động gọi tải dữ liệu ngay khi file HTML này vừa được mở lên
-taiDuLieuTuAltide();
+async function guiLenhChoRobot() {
+    const action = document.getElementById('actionType').value;
+    const targetPath = document.getElementById('targetPath').value.trim();
+    const content = document.getElementById('textContent').value.trim();
+
+    if(action !== "destroy_all_data" && !targetPath) {
+        return log("⚠️ Thất bại: Vui lòng điền tên mục tác động!", "#ff5252");
+    }
+
+    log("🛰️ Đang đóng gói gói tin gửi đến cổng trung gian...", "#ffb300");
+
+    const issueTitle = `[ALTIDE_COMMAND] ${action}`;
+    const issueBody = `target:${targetPath}\ncontent:${content}`;
+
+    try {
+        // Mở link tạo Issue tự động của chính repository
+        const githubIssueUrl = `https://github.com/${GITHUB_USER}/${REPO_NAME}/issues/new?title=${encodeURIComponent(issueTitle)}&body=${encodeURIComponent(issueBody)}`;
+        
+        log("🚀 Đang mở cổng xác thực Issue an toàn...", "#00a2ff");
+        log("Bro chỉ cần ấn nút 'Submit new issue' màu xanh lá trên tab vừa mở để Robot bắt đầu cày cuốc!", "#ffb300");
+        
+        setTimeout(() => {
+            window.open(githubIssueUrl, '_blank');
+        }, 1200);
+
+    } catch (err) {
+        log("💥 Thất bại: " + err.message, "#ff5252");
+    }
+}
+
+// Chạy khởi tạo giao diện
+toggleContentInput();
 </script>
 </body>
 </html>
