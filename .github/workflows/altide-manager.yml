@@ -1,46 +1,50 @@
 name: Altide Data Robot Manager
+
 on:
   repository_dispatch:
     types: [altide_edit_request]
+
+# Cấp quyền tối cao cho Robot được ghi đè và cập nhật file trong Repo
+permissions:
+  contents: write
+  actions: write
 
 jobs:
   update-data:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout Code
+      - name: Checkout Code Khỏi Kho Dữ Liệu
         uses: actions/checkout@v4
+        with:
+          # Thò tay vào hòm Secrets bốc ALTIDE_TOKEN của ông ra để lấy quyền sửa kho
+          token: ${{ secrets.ALTIDE_TOKEN }}
 
-      - name: Robot Xử Lý Dữ Liệu data.json
-        env:
-          ACTION_TYPE: ${{ github.event.client_payload.action }} # "create_folder" hoặc "write_file"
-          TARGET_TARGET: ${{ github.event.client_payload.target_path }} # Tên mục/thư mục ảo muốn tác động
-          DATA_CONTENT: ${{ github.event.client_payload.content }} # Nội dung dữ liệu cần nhét vào
+      - name: Robot Sửa File data.json Theo Lệnh Từ HTML
         run: |
-          echo "🤖 Robot Altide đang khởi động tiến trình chỉnh sửa..."
-          
-          # Kiểm tra nếu file data.json chưa tồn tại thì tạo mới file rỗng
+          # Nhận các gói dữ liệu truyền từ GitHub Pages sang
+          ACTION_TYPE="${{ github.event.client_payload.action }}"
+          TARGET_TARGET="${{ github.event.client_payload.target_path }}"
+          DATA_CONTENT="${{ github.event.client_payload.content }}"
+
+          echo "🤖 Robot Altide đang xử lý lệnh: $ACTION_TYPE trên mục $TARGET_TARGET"
+
+          # Nếu file data.json chưa tồn tại thì tự khởi tạo cấu trúc gốc
           if [ ! -f data.json ]; then
             echo "{\"project_name\":\"altide_storage\",\"system_files\":{}}" > data.json
           fi
 
+          # Xử lý tạo mục mới hoặc ghi đè dữ liệu bằng công cụ jq
           if [ "$ACTION_TYPE" == "create_folder" ]; then
-            echo "📁 Đang tạo mục lưu trữ mới: $TARGET_TARGET"
-            # Sử dụng jq để thêm một object rỗng (thư mục ảo) vào trong system_files
             jq --arg folder "$TARGET_TARGET" '.system_files[$folder] = {}' data.json > tmp.json && mv tmp.json data.json
-          
           elif [ "$ACTION_TYPE" == "write_file" ]; then
-            echo "📝 Đang ghi dữ liệu vào mục: $TARGET_TARGET"
-            # Sử dụng jq để chèn nội dung dữ liệu (content) vào đúng mục được chỉ định
             jq --arg folder "$TARGET_TARGET" --arg content "$DATA_CONTENT" '.system_files[$folder] = $content' data.json > tmp.json && mv tmp.json data.json
           fi
 
-          echo "✅ Robot đã xử lý xong cấu trúc JSON mới."
-
-      - name: Robot Tự Động Lưu Và Đẩy Lên GitHub
+      - name: Robot Tự Động Commit Và Push Đẩy Dữ Liệu Lên Lại Pages
         run: |
           git config --global user.name "altide-robot-manager"
           git config --global user.email "robot@altide.io"
           git add data.json
           
-          # Chỉ commit nếu file data.json thực sự có sự thay đổi dữ liệu
-          git diff-index --quiet HEAD || (git commit -m "🤖 [altide] Robot đã cập nhật dữ liệu data.json" && git push)
+          # Chỉ lưu nếu file thực sự có sự thay đổi dữ liệu để tránh lỗi lặp vô hạn
+          git diff-index --quiet HEAD || (git commit -m "🤖 [altide] Robot đã cập nhật dữ liệu tự động" && git push)
